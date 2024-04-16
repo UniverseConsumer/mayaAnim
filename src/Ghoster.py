@@ -47,26 +47,46 @@ class Ghost:
             mc.addAttr(ghostName, ln = self.frameAttr, dv = currentFrame)
 
     def GoToNextGhost(self):
-        frames = self.GetGhostFramesSorted()
+        frames = self.GetGhostFramesSorted() # find all the frames we have in ascending order
+        if not frames: # if there is not frames/Ghost, do nothing
+            return
         currentFrame = GetCurrentFrame()
-        for frame in frames:
-            if frame > currentFrame:
+        for frame in frames: #go through each frame
+            if frame > currentFrame: # if we find one that is bigger than the current frame, it should be where we can move time slider to
                 mc.currentTime(frame, e = True) # e means 'edit', we are editing the time slider to be at frame
                 return
             
         mc.currentTime(frames[0], e=True)
 
     def GoToPrevGhost(self):
-        pass
+        frames = self.GetGhostFramesSorted()
+        frames.reverse() #sorts frames list in descending order
+
+        if not frames:
+            return
+        currentFrame = GetCurrentFrame()
+        for frame in frames:
+            if frame < currentFrame:
+                mc.currentTime(frame, e = True)
+                return
+            
+        mc.currentTime(frames[0], e=True)
+
 
 
     def GetGhostFramesSorted(self):
         frames = set()
-        for ghost in mc.listRelatives(self.ghostGrp, c=True):
+        ghosts = mc.listRelatives(self.ghostGrp, c=True)
+
+        for ghost in ghosts:
             frame = mc.getAttr(ghost + "." + self.frameAttr)
+            print(f"Frame is: {frame}")
             frames.add(frame)
 
-        return list(frames).sort()
+        frames = list(frames) # this converts frames to a list
+        frames.sort() # sorts frames list to ascending order
+        return frames #returns sorted frames
+
 
 class GhostWidget(QWidget):
     def __init__(self):
@@ -98,7 +118,7 @@ class GhostWidget(QWidget):
         self.ctrlLayout.addWidget(prevGhostBtn)
 
         nextGhostBtn = QPushButton("Next Ghost")
-        nextGhostBtn.clicked.connect(self.gost.GoToNextGhost)
+        nextGhostBtn.clicked.connect(self.ghost.GoToNextGhost)
         self.ctrlLayout.addWidget(nextGhostBtn)
 
 
