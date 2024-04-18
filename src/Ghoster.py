@@ -69,11 +69,22 @@ class Ghost:
             if frame < currentFrame:
                 mc.currentTime(frame, e = True)
                 return
+
             
         mc.currentTime(frames[0], e=True)
 
+    def DeleteGhostOnCurFrame(self):
+        currentFrame = GetCurrentFrame()
+        ghosts = mc.listRelatives(self.ghostGrp, c=True) #Gets all children of the ghost grp
+        for ghost in ghosts:
+            ghostFrame = mc.getAttr(ghost + "." + self.frameAttr)
+            if ghostFrame == currentFrame:
+                self.DeleteGhost(ghost)
 
+    def DeleteGhost(self, ghost):
+        mc.delete(ghost)
 
+        
     def GetGhostFramesSorted(self):
         frames = set()
         ghosts = mc.listRelatives(self.ghostGrp, c=True)
@@ -121,8 +132,15 @@ class GhostWidget(QWidget):
         nextGhostBtn.clicked.connect(self.ghost.GoToNextGhost)
         self.ctrlLayout.addWidget(nextGhostBtn)
 
-
-
+        self.ctrlLayout = QHBoxLayout()
+        self.masterlayout.addLayout(self.ctrlLayout)
+        
+        DelGhostBtn = QPushButton("Delete Ghost on Current Frame")
+        DelGhostBtn.clicked.connect(self.ghost.DeleteGhostOnCurFrame)
+        self.ctrlLayout.addWidget(DelGhostBtn)
+        DelGhostAllBtn = QPushButton("Delete Ghost on All Frames")
+        DelGhostAllBtn.clicked.connect(self.ghost.DeleteGhost)
+        self.ctrlLayout.addWidget(DelGhostAllBtn)
 
     def SrcMeshSelectionChanged(self):
         mc.select(cl=True) # Deselects Everything
