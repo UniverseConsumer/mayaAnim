@@ -1,5 +1,6 @@
 import maya.cmds as mc
-from PySide2.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, QListWidget, QAbstractItemView, QColorDialog
+from PySide2.QtCore import Signal, Qt
+from PySide2.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, QListWidget, QAbstractItemView, QColorDialog, QSlider
 from PySide2.QtGui import QColor, QPainter, QBrush
 
 
@@ -11,13 +12,62 @@ class Ghost:
         self.srcMeshes = set() # a list that has unique elements.
         self.ghostGrp = "ghost_grp"
         self.frameAttr = "frame"
+        self.color = [0,0,0]
+        self.transparencyRange = 100
+        self.transparencyOffset = 0
         self.srcAttr = "src"
+        self.timeChangeJob = mc.scriptJob(e=["timeChanged", self.TimeChangedEvent])
         self.InitIfGhostGrpNotExist()
+
+    def TimeChangedEvent(self):
+        self.UpdateGhostTransparency()
+
+    def OffsetGhostTransparency(self, value):
+        self.transparencyOffset = value/100
+        self.UpdateGhostTransparency()
+
+
+    def UpdateGhostTransparency(self, newRange):
+        self.transparencyRange = newRange
+        currentFrame = GetCurrentFrame()
+        ghosts = mc.listRelatives(self.ghostGrp, c = True)
+        if not ghosts:
+            return
         
+        for ghost in ghosts:
+            ghostFrame = mc.getAttr(ghost + "." + self.frameAttr)
+            ghostFrameDistance = abs(ghostFrame - currentFrame) #Gives the absolute value of the argument
+            normalizeDistance = ghostFrameDistance / self.transparencyRange
+            normalizeDistance += self.transparencyOffset
+            if normalizeDistance > 1:
+                normalizeDistance = 1
+
+            mat = self.GetMaterialNameForGhost(ghost)
+            if mc.objExists(mat):
+                mc.setAttr(mat + ".transparency" , normalizeDistance, normalizeDistance, normalizeDistance, type = "double3")
+
+
+
+
+    def UpdateTransparencyRange(self, newRange):
+        self.transparencyRange = newRange
+        self.UpdateGhostTransparency()
+
+
+    def UpgdateGhostColors(self, color: QColor):
+        ghosts = mc.listRelatives(self.ghostGrp, c= True)
+        self.color[0] = color.redF()
+        self.color[1] = color.greenF()
+        self.color[2] = color.blueF()
+        for ghost in ghosts:
+            mat = self.GetMaterialNameForGhost(ghost)
+            mc.setAttr(mat + ".color", color.redF(), color.greenF(), color.blueF(), type = "double3")
+
     def InitIfGhostGrpNotExist(self):
         if mc.objExists(self.ghostGrp):
             storedSrcMeshes = mc.getAttr(self.ghostGrp + "." + self.srcAttr)
-            self.srcMeshes = set(storedSrcMeshes.split(","))
+            if storedSrcMeshes:
+                self.srcMeshes = set(storedSrcMeshes.split("."))
             return
         
         mc.createNode("transform", n = self.ghostGrp)
@@ -58,6 +108,8 @@ class Ghost:
 
             mc.connectAttr(matName + ".outColor", sgName + ".surfaceShader", force = True) # connect 
             mc.sets(ghostName, edit=True, forceElement = sgName)    
+
+            mc.setAttr(matName + ".color", self.color[0], self.color[1], self.color[2], type = "double3")
 
     def GetShadingEngineForGhost (self,ghost):
         return ghost + "_sg"
@@ -136,6 +188,7 @@ class Ghost:
         return frames #returns sorted frames
 
 class ColorPicker(QWidget):
+    onColorChanged = Signal(QColor) #This adds a built in class member called onColorChanged
     def __init__(self, width = 80, height = 20):
         super().__init__()
         self.setFixedSize(width, height)
@@ -144,12 +197,13 @@ class ColorPicker(QWidget):
     def mousePressEvent(self, event):
         color = QColorDialog().getColor(self.color)
         self.color = color
+        self.onColorChanged.emit(self.color)
         self.update()
 
     def paintEvent(self, event):
         painter = QPainter(self)
         painter.setBrush(QBrush(self.color))
-        painter.drawRect(0,0,self.width(), self.height)
+        painter.drawRect(0,0,self.width(), self.height())
 
 
 
@@ -196,13 +250,29 @@ class GhostWidget(QWidget):
         DelGhostAllBtn.clicked.connect(self.ghost.DeleteAllGhost)
         self.ctrlLayout.addWidget(DelGhostAllBtn)
 
-        self.ctrlLayout = QHBoxLayout()
-        self.masterlayout.addLayout(self.ctrlLayout)
+        self.materialLayout = QHBoxLayout()
+        self.masterlayout.addLayout(self.materialLayout)
 
         colorPicker = ColorPicker()
-        self.masterlayout.addWidget(colorPicker)
+        colorPicker.onColorChanged.connect(self.ghost.UpgdateGhostColors)
+        self.materialLayout.addWidget(colorPicker)
 
-        
+        self.transparencyRangeSlider = QSlider()
+        self.transparencyRangeSlider.setOrientation(Qt.Horizontal)
+        self.transparencyRangeSlider.valueChanged.connect(self.TransparencyValueChanged)
+        self.transparencyRangeSlider.setMinimum(0)
+        self.transparencyRangeSlider.setMaximum(200)
+        self.materialLayout.addWidget(self.transparencyRangeSlider)
+
+        self.transparencyOffset = QSlider()
+        self.transparencyOffset.setOrientation(Qt.Horizontal)
+        self.transparencyOffset.valueChanged.connect(self.ghost.OffsetGhostTransparency)
+        self.transparencyOffset.setMinimum(0)
+        self.transparencyOffset.setMaximum(100)
+        self.masterlayout.addWidget(self.transparencyOffset)
+
+    def TransparencyValueChanged(self, value):
+        self.ghost.UpdateTransparencyRange(value)
 
     def SrcMeshSelectionChanged(self):
         mc.select(cl=True) # Deselects Everything
