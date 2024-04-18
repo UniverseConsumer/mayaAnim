@@ -1,5 +1,6 @@
 import maya.cmds as mc
-from PySide2.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, QListWidget, QAbstractItemView
+from PySide2.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, QListWidget, QAbstractItemView, QColorDialog
+from PySide2.QtGui import QColor, QPainter, QBrush
 
 
 def GetCurrentFrame():
@@ -46,6 +47,24 @@ class Ghost:
             mc.parent(ghostName, self.ghostGrp)
             mc.addAttr(ghostName, ln = self.frameAttr, dv = currentFrame)
 
+
+            matName = self.GetMaterialNameForGhost(ghostName) #figure out name of material
+            if not mc.objExists(matName): #check if mat not exist
+                mc.shadingNode("lambert", asShader = True, name = matName) # create lambert mat if not exist
+
+            sgName = self.GetShadingEngineForGhost(ghostName) #figure name of shading engine
+            if not mc.objExists(sgName): #check if shading engine exists
+                mc.sets(name = sgName, renderable = True, empty = True) #create shading engine if not exists
+
+            mc.connectAttr(matName + ".outColor", sgName + ".surfaceShader", force = True) # connect 
+            mc.sets(ghostName, edit=True, forceElement = sgName)    
+
+    def GetShadingEngineForGhost (self,ghost):
+        return ghost + "_sg"
+
+    def GetMaterialNameForGhost(self, ghost):
+        return ghost + "_mat"                           
+
     def GoToNextGhost(self):
         frames = self.GetGhostFramesSorted() # find all the frames we have in ascending order
         if not frames: # if there is not frames/Ghost, do nothing
@@ -77,12 +96,30 @@ class Ghost:
         currentFrame = GetCurrentFrame()
         ghosts = mc.listRelatives(self.ghostGrp, c=True) #Gets all children of the ghost grp
         for ghost in ghosts:
-            ghostFrame = mc.getAttr(ghost + "." + self.frameAttr)
-            if ghostFrame == currentFrame:
-                self.DeleteGhost(ghost)
+            ghostFrame = mc.getAttr(ghost + "." + self.frameAttr) #ask for the frame recrorded for ghost
+            if ghostFrame == currentFrame: # if the ghost frame is same as current frame
+                self.DeleteGhost(ghost) # remove the ghost
+
+    def DeleteAllGhost(self):
+        ghosts = mc.listRelatives(self.ghostGrp, c = True)
+        for ghost in ghosts:
+            self.DeleteGhost(ghost)
+
 
     def DeleteGhost(self, ghost):
-        mc.delete(ghost)
+        #Delete Mat
+        mat = self.GetMaterialNameForGhost(ghost)
+        if mc.objExists(mat):
+            mc.delete(mat)
+        #Delete Shading
+        sg= self.GetShadingEngineForGhost(ghost)
+        if mc.objExists(sg):
+            mc.delete(sg)
+        #Delete Ghost Model
+        if mc.objExists(ghost):
+            mc.delete(ghost)
+
+
 
         
     def GetGhostFramesSorted(self):
@@ -97,6 +134,23 @@ class Ghost:
         frames = list(frames) # this converts frames to a list
         frames.sort() # sorts frames list to ascending order
         return frames #returns sorted frames
+
+class ColorPicker(QWidget):
+    def __init__(self, width = 80, height = 20):
+        super().__init__()
+        self.setFixedSize(width, height)
+        self.color = QColor()
+
+    def mousePressEvent(self, event):
+        color = QColorDialog().getColor(self.color)
+        self.color = color
+        self.update()
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.setBrush(QBrush(self.color))
+        painter.drawRect(0,0,self.width(), self.height)
+
 
 
 class GhostWidget(QWidget):
@@ -139,8 +193,16 @@ class GhostWidget(QWidget):
         DelGhostBtn.clicked.connect(self.ghost.DeleteGhostOnCurFrame)
         self.ctrlLayout.addWidget(DelGhostBtn)
         DelGhostAllBtn = QPushButton("Delete Ghost on All Frames")
-        DelGhostAllBtn.clicked.connect(self.ghost.DeleteGhost)
+        DelGhostAllBtn.clicked.connect(self.ghost.DeleteAllGhost)
         self.ctrlLayout.addWidget(DelGhostAllBtn)
+
+        self.ctrlLayout = QHBoxLayout()
+        self.masterlayout.addLayout(self.ctrlLayout)
+
+        colorPicker = ColorPicker()
+        self.masterlayout.addWidget(colorPicker)
+
+        
 
     def SrcMeshSelectionChanged(self):
         mc.select(cl=True) # Deselects Everything
