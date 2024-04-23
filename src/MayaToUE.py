@@ -1,5 +1,5 @@
 import maya.cmds as mc
-from  PySide2 .QtWidgets import QLineEdit, QMessageBox, QPushButton, QVBoxLayout, QWidget
+from  PySide2 .QtWidgets import QLineEdit, QMessageBox, QPushButton, QVBoxLayout, QWidget, QListWidget, QAbstractItemView
 
 class MayaToUE:
     def __init__(self):
@@ -15,6 +15,23 @@ class MayaToUE:
             return False, "No Joint Selected"
         
         self.rootJnt = selection[0]
+        return True, ""
+
+
+    def TryAddUnrealRootJnt(self):
+        if (not self.rootJnt) or (not mc.objExists(self.rootJnt)):
+            return False, "ERROR: You Need to Assign a Root Joint First!"        
+
+        #Q = Query, t means Translate, ws means World Space
+        currentRootPos = mc.xform(self.rootJnt, q=True, t=True, ws=True)
+        if currentRootPos[0] == 0 and currentRootPos[1] == 0 and currentRootPos [2] == 0:
+            return False, "ERROR: Root Joint already Exists!"
+
+        rootJntName = self.rootJnt + "_root"
+        mc.select(cl=True) #cl = Cancel
+        mc.joint(name = rootJntName)
+        mc.parent(self.rootJnt, rootJntName)
+        self.rootJnt = rootJntName
         return True, ""
 
     def SetSelectedAsMeshes(self):
@@ -50,6 +67,37 @@ class MayaToUEWidget(QWidget):
         setselectedAsRootJntBtn = QPushButton("Set Selected As Root Joint")
         setselectedAsRootJntBtn.clicked.connect(self.SetSelectedAsRootBtnClicked)
         self.masterLayout.addWidget(setselectedAsRootJntBtn)
+
+        addUnrealRootBtn = QPushButton("Add Unreal Root Joint")
+        addUnrealRootBtn.clicked.connect(self.AddUnrealRootBtnClicked)
+        self.masterLayout.addWidget(addUnrealRootBtn)
+
+        self.meshList = QListWidget()
+        self.meshList.setSelectionMode(QAbstractItemView.ExtendedSelection)
+        self.meshList.itemSelectionChanged.connect(self.MeshListSelectionChaged)
+        self.masterLayout.addWidget(self.meshList)
+        assignSelectedMeshBtn = QPushButton("Assign Selected Meshes")
+        assignSelectedMeshBtn.clicked.connect(self.AssignSelectedMeshBtnClicked)
+        self.masterLayout.addWidget(assignSelectedMeshBtn)
+
+    def MeshListSelectionChaged(self):
+        mc.select(cl=True)
+
+    def AssignSelectedMeshBtnClicked(self):
+        success, msg = self.MayaToUE.SetSelectedAsMeshes()
+        if success:
+            self.meshList.clear()
+            self.meshList.addItems(self.MayaToUE.meshes)
+
+        else:
+            QMessageBox().warning(self, "Warning", msg)
+
+    def AddUnrealRootBtnClicked(self):
+        success, msg = self.MayaToUE.TryAddUnrealRootJnt()
+        if success:
+            self.jntLineEdit.setText(self.MayaToUE.rootJnt)
+        else:
+            QMessageBox().warning(self, "Warning", msg)
 
     def SetSelectedAsRootBtnClicked(self):
         success, msg = self.MayaToUE.SetSelectedAsRootJnt()
