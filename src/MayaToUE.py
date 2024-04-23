@@ -122,10 +122,10 @@ class AnimEntry(QWidget):
         print(f"toggled: {self.animClip.shouldExport}")
 
     def SetRangeBtnClicked(self):
-        pass
+        pass #Homework, The Timeline would Update, if end Range is set to 20, the slider will max at 20 (Any #), 1 Line
 
     def RemoveBtnClicked(self):
-        pass
+        pass #Homework, where when "[ X ]" is clicked is makes the bar dissapear, RemoveWidget using Pyside. 1 Line
 
 class MayaToUEWidget(QWidget):
     def __init__(self):
