@@ -1,5 +1,14 @@
 import maya.cmds as mc
-from  PySide2 .QtWidgets import QLineEdit, QMessageBox, QPushButton, QVBoxLayout, QWidget, QListWidget, QAbstractItemView
+from  PySide2 .QtWidgets import QCheckBox, QHBoxLayout, QLabel, QLineEdit, QMessageBox, QPushButton, QVBoxLayout, QWidget, QListWidget, QAbstractItemView
+
+class AnimClip:
+    def __init__(self):
+        self.frameStart = mc.playbackOptions(q=True, min = True)
+        self.frameEnd = mc.playbackOptions(q=True, max = True)
+        self.subFix = ""
+        self.shouldExport = True
+
+
 
 class MayaToUE:
     def __init__(self):
@@ -54,6 +63,47 @@ class MayaToUE:
         self.meshes = meshes 
         return True, ""
         
+class AnimEntry(QWidget):
+    def __init__(self, animClip: AnimClip):
+        super().__init__()
+        self.masterLayout = QHBoxLayout()
+        self.setLayout(self.masterLayout)
+        self.toggleBox = QCheckBox()
+        self.toggleBox.setChecked(animClip.shouldExport)
+        self.masterLayout.addWidget(self.toggleBox)
+
+        subFixLabel = QLabel("Subfix: ")
+        self.masterLayout.addWidget(subFixLabel)
+        self.subfixLineEdit = QLineEdit()
+        self.subfixLineEdit.setText(animClip.subFix)
+        self.masterLayout.addWidget(self.subfixLineEdit)
+
+
+        startFrameLabel = QLabel("Start: ")
+        self.masterLayout.addWidget(startFrameLabel)
+        self.startFrameLineEdit = QLineEdit()
+        self.startFrameLineEdit.setText(str(animClip.frameStart))
+        self.masterLayout.addWidget(self.startFrameLineEdit)
+
+        endFrameLabel = QLabel("End: ")
+        self.masterLayout.addWidget(endFrameLabel)
+        self.endFrameLineEdit = QLineEdit()
+        self.endFrameLineEdit.setText(str(animClip.frameEnd))
+        self.masterLayout.addWidget(self.endFrameLineEdit)
+
+        setRanBtn = QPushButton("[ SET ]")
+        setRanBtn.clicked.connect(self.SetRangeBtnClicked)
+        self.masterLayout.addWidget(setRanBtn)
+
+        removeBtn = QPushButton("[ X ]")
+        removeBtn.clicked.connect(self.RemoveBtnClicked)
+        self.masterLayout.addWidget(removeBtn)
+
+    def SetRangeBtnClicked(self):
+        pass
+
+    def RemoveBtnClicked(self):
+        pass
 
 class MayaToUEWidget(QWidget):
     def __init__(self):
@@ -82,8 +132,13 @@ class MayaToUEWidget(QWidget):
         assignSelectedMeshBtn.clicked.connect(self.AssignSelectedMeshBtnClicked)
         self.masterLayout.addWidget(assignSelectedMeshBtn)
 
+        testAnimEntry = AnimEntry(AnimClip())
+        self.masterLayout.addWidget(testAnimEntry)
+
     def MeshListSelectionChaged(self):
         mc.select(cl=True)
+
+    
 
     def AssignSelectedMeshBtnClicked(self):
         success, msg = self.MayaToUE.SetSelectedAsMeshes()
