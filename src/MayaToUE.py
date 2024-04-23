@@ -42,6 +42,8 @@ class MayaToUE:
         meshes = set() 
         for sel in selection: # Loop though everything we select
             shapes = mc.listRelatives(sel, s=True) # Find their shape nodes
+            if not shapes:
+                continue
             for s in shapes: # For each shape node we find
                 if mc.objectType(s) == "mesh": #Check if there are mesh shapes
                     meshes.add(sel) # If they are mesh shapes, we will collect tem
