@@ -28,7 +28,7 @@ class MayaToUE:
         #Windows: C:dev\myPrj\Name.fbx
         #Linux/MacOS: ~/dev/myPrj/Name.fbx
         #Path can be c:\dev.myPrj\Name.fbx
-        path = os.path.join(self.saveDir, self.fileName + ".fob") # Is raw path
+        path = os.path.join(self.saveDir, self.fileName + ".fbx") # Is raw path
         return os.path.normpath(path) #Normalize the Path
     
     def GetAnimFolder(self):
@@ -204,6 +204,7 @@ class MayaToUEWidget(QWidget):
         self.fileNameLineEdit = QLineEdit()
         self.fileNameLineEdit.setFixedWidth(80)
         self.fileNameLineEdit.setValidator(QRegExpValidator("\w+"))
+        self.fileNameLineEdit.textChanged.connect(self.FineNameChanged)
         self.saveFileLayout.addWidget(self.fileNameLineEdit)
 
         fileDirLabel = QLabel("Save Directory: ")
