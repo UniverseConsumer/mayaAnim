@@ -1,7 +1,8 @@
+import os
 from PySide2.QtCore import Signal
 from PySide2.QtGui import QIntValidator, QRegExpValidator
 import maya.cmds as mc
-from  PySide2 .QtWidgets import QCheckBox, QHBoxLayout, QLabel, QLineEdit, QMessageBox, QPushButton, QVBoxLayout, QWidget, QListWidget, QAbstractItemView
+from  PySide2 .QtWidgets import QCheckBox, QFileDialog, QHBoxLayout, QLabel, QLineEdit, QMessageBox, QPushButton, QVBoxLayout, QWidget, QListWidget, QAbstractItemView
 
 class AnimClip:
     def __init__(self):
@@ -19,6 +20,24 @@ class MayaToUE:
         self.fileName = ""
         self.animations = []
         self.saveDir = ""
+
+    def SetSaveDir(self, newSaveDir):
+        self.saveDir = newSaveDir
+
+    def GetSkeletalMeshSavePath(self):
+        #Windows: C:dev\myPrj\Name.fbx
+        #Linux/MacOS: ~/dev/myPrj/Name.fbx
+        #Path can be c:\dev.myPrj\Name.fbx
+        path = os.path.join(self.saveDir, self.fileName + ".fob") # Is raw path
+        return os.path.normpath(path) #Normalize the Path
+    
+    def GetAnimFolder(self):
+        path = os.path.join(self.saveDir, "anim")
+        return os.path.normpath(path)
+    
+    def GetAnimClipSavePath(self, clip: AnimClip):
+        path = os.path.join(self.GetAnimFolder(), self.fileName + "_", clip.subFix)
+        return os.path.normpath(path)
 
     def AddAnimClip(self): 
         self.animations.append(AnimClip())
@@ -72,6 +91,7 @@ class MayaToUE:
 
         
 class AnimEntry(QWidget):
+    entryNamedChanged = Signal(str)
     entryRemoved = Signal(AnimClip)
     def __init__(self, animClip: AnimClip):
         super().__init__()
@@ -124,6 +144,7 @@ class AnimEntry(QWidget):
     def SubfixTextChanged(self):
         if self.subfixLineEdit.text():
             self.animClip.subFix = self.subfixLineEdit.text()
+            self.entryNamedChanged.emit(self.animClip.subFix)
 
     def EndFrameChanged(self):
         if self.endFrameLineEdit.text():
@@ -176,11 +197,59 @@ class MayaToUEWidget(QWidget):
         self.animEntryLayout = QVBoxLayout()
         self.masterLayout.addLayout(self.animEntryLayout)
 
+        self.saveFileLayout = QHBoxLayout()
+        self.masterLayout.addLayout(self.saveFileLayout)
+        fileNameLabel = QLabel("Name: ")
+        self.saveFileLayout.addWidget(fileNameLabel)
+        self.fileNameLineEdit = QLineEdit()
+        self.fileNameLineEdit.setFixedWidth(80)
+        self.fileNameLineEdit.setValidator(QRegExpValidator("\w+"))
+        self.saveFileLayout.addWidget(self.fileNameLineEdit)
+
+        fileDirLabel = QLabel("Save Directory: ")
+        self.saveFileLayout.addWidget(fileDirLabel)
+        self.saveDirLineEdit = QLineEdit()
+        self.saveDirLineEdit.setEnabled(False)
+        self.saveFileLayout.addWidget(self.saveDirLineEdit)
+
+        setSaveDirBtn = QPushButton("Dir")
+        setSaveDirBtn.clicked.connect(self.SetSaveDirBtnClicked)
+        self.saveFileLayout.addWidget(setSaveDirBtn)
+
+        self.savePreviewLabel = QLabel()
+        self.masterLayout.addWidget(self.savePreviewLabel)
+
+    def UpdateSavePreview(self):
+        previewText = ""
+        skeletalMeshFilePath = self.MayaToUE.GetSkeletalMeshSavePath()
+        previewText += skeletalMeshFilePath
+        if self.MayaToUE.animations:
+            for anim in self.MayaToUE.animations:
+                AnimPath = self.MayaToUE.GetAnimClipSavePath(anim)
+                previewText += "\n" + AnimPath
+        
+
+        self.savePreviewLabel.setText(previewText)
+        self.adjustSize()
+
+
+    def SetSaveDirBtnClicked(self):
+        dir = QFileDialog().getExistingDirectory()
+        self.MayaToUE.saveDir = dir
+        self.saveDirLineEdit.setText(dir)
+        self.UpdateSavePreview()
+
+    def FineNameChanged(self, newName):
+        self.MayaToUE.fileName = newName
+        self.UpdateSavePreview()
+
     def AddNewAnimEntryBtnClicked(self):
         newClip = self.MayaToUE.AddAnimClip()
         newEntry = AnimEntry(newClip)
         newEntry.entryRemoved.connect(self.RemoveAnimEntry)
+        newEntry.entryNamedChanged.connect(self.UpdateSavePreview)
         self.animEntryLayout.addWidget(newEntry)
+        self.UpdateSavePreview()
 
     def MeshListSelectionChaged(self):
         mc.select(cl=True)
@@ -189,6 +258,7 @@ class MayaToUEWidget(QWidget):
         print("Remove Animation Signal Emiited, and received here!")
         self.adjustSize()
         self.MayaToUE.animations.remove(clipToRemove)
+        self.UpdateSavePreview()
 
     def AssignSelectedMeshBtnClicked(self):
         success, msg = self.MayaToUE.SetSelectedAsMeshes()
@@ -216,5 +286,6 @@ class MayaToUEWidget(QWidget):
 
 
 mayaToUEWidget = MayaToUEWidget()
+
 mayaToUEWidget.show()
 
