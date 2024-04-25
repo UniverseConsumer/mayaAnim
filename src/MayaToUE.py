@@ -109,11 +109,11 @@ class AnimEntry(QWidget):
         self.endFrameLineEdit.setText(str(animClip.frameEnd))
         self.masterLayout.addWidget(self.endFrameLineEdit)
 
-        setRanBtn = QPushButton("[ - ]")
+        setRanBtn = QPushButton("[ SET ]")
         setRanBtn.clicked.connect(self.SetRangeBtnClicked)
         self.masterLayout.addWidget(setRanBtn)
 
-        removeBtn = QPushButton("[ X ]")
+        removeBtn = QPushButton("[ DEL ]")
         removeBtn.clicked.connect(self.RemoveBtnClicked)
         self.masterLayout.addWidget(removeBtn)
 
@@ -137,6 +137,7 @@ class AnimEntry(QWidget):
         mc.playbackOptions(minTime = self.animClip.frameStart, maxTime = self.animClip.frameEnd, e=True)
 
     def RemoveBtnClicked(self):
+        self.entryRemoved.emit(self.animClip) #Calls the function connected to the entryRemoved Signal.
         self.deleteLater() #Remove this widget the next time it is proper.
 
 
@@ -178,12 +179,16 @@ class MayaToUEWidget(QWidget):
     def AddNewAnimEntryBtnClicked(self):
         newClip = self.MayaToUE.AddAnimClip()
         newEntry = AnimEntry(newClip)
+        newEntry.entryRemoved.connect(self.RemoveAnimEntry)
         self.animEntryLayout.addWidget(newEntry)
 
     def MeshListSelectionChaged(self):
         mc.select(cl=True)
 
-    
+    def RemoveAnimEntry(self, clipToRemove):
+        print("Remove Animation Signal Emiited, and received here!")
+        self.adjustSize()
+        self.MayaToUE.animations.remove(clipToRemove)
 
     def AssignSelectedMeshBtnClicked(self):
         success, msg = self.MayaToUE.SetSelectedAsMeshes()
