@@ -1,10 +1,11 @@
+from PySide2.QtGui import QIntValidator
 import maya.cmds as mc
 from  PySide2 .QtWidgets import QCheckBox, QHBoxLayout, QLabel, QLineEdit, QMessageBox, QPushButton, QVBoxLayout, QWidget, QListWidget, QAbstractItemView
 
 class AnimClip:
     def __init__(self):
-        self.frameStart = mc.playbackOptions(q=True, min = True)
-        self.frameEnd = mc.playbackOptions(q=True, max = True)
+        self.frameStart = int(mc.playbackOptions(q=True, min = True))
+        self.frameEnd = int(mc.playbackOptions(q=True, max = True))
         self.subFix = ""
         self.shouldExport = True
 
@@ -75,8 +76,6 @@ class AnimEntry(QWidget):
         self.toggleBox.toggled.connect(self.ToggleBoxToggled)
         self.masterLayout.addWidget(self.toggleBox)
 
-
-
         subFixLabel = QLabel("Subfix: ")
         self.masterLayout.addWidget(subFixLabel)
         self.subfixLineEdit = QLineEdit()
@@ -88,6 +87,7 @@ class AnimEntry(QWidget):
         startFrameLabel = QLabel("Start: ")
         self.masterLayout.addWidget(startFrameLabel)
         self.startFrameLineEdit = QLineEdit()
+        self.startFrameLineEdit.setValidator(QIntValidator())
         self.startFrameLineEdit.textChanged.connect(self.StartFrameChanged)
         self.startFrameLineEdit.setText(str(animClip.frameStart))
         self.masterLayout.addWidget(self.startFrameLineEdit)
@@ -95,11 +95,12 @@ class AnimEntry(QWidget):
         endFrameLabel = QLabel("End: ")
         self.masterLayout.addWidget(endFrameLabel)
         self.endFrameLineEdit = QLineEdit()
+        self.endFrameLineEdit.setValidator(QIntValidator())
         self.endFrameLineEdit.textChanged.connect(self.EndFrameChanged)
         self.endFrameLineEdit.setText(str(animClip.frameEnd))
         self.masterLayout.addWidget(self.endFrameLineEdit)
 
-        setRanBtn = QPushButton("[ SET ]")
+        setRanBtn = QPushButton("[ - ]")
         setRanBtn.clicked.connect(self.SetRangeBtnClicked)
         self.masterLayout.addWidget(setRanBtn)
 
@@ -108,24 +109,24 @@ class AnimEntry(QWidget):
         self.masterLayout.addWidget(removeBtn)
 
     def StartFrameChanged(self):
-        pass
+        self.animClip.frameStart = int(self.startFrameLineEdit.text())
 
     def SubfixTextChanged(self):
         pass
 
     def EndFrameChanged(self):
-        pass
+        self.animClip.frameEnd = int(self.endFrameLineEdit.text())
 
 
     def ToggleBoxToggled(self):
         self.animClip.shouldExport = not self.animClip.shouldExport
-        print(f"toggled: {self.animClip.shouldExport}")
 
     def SetRangeBtnClicked(self):
-        pass #Homework, The Timeline would Update, if end Range is set to 20, the slider will max at 20 (Any #), 1 Line
+        mc.playbackOptions(minTime = self.animClip.frameStart, maxTime = self.animClip.frameEnd, e=True)
 
     def RemoveBtnClicked(self):
-        pass #Homework, where when "[ X ]" is clicked is makes the bar dissapear, RemoveWidget using Pyside. 1 Line
+        pass
+
 
 class MayaToUEWidget(QWidget):
     def __init__(self):
