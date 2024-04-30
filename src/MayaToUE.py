@@ -36,7 +36,7 @@ class MayaToUE:
         return os.path.normpath(path)
     
     def GetAnimClipSavePath(self, clip: AnimClip):
-        path = os.path.join(self.GetAnimFolder(), self.fileName + "_", clip.subFix)
+        path = os.path.join(self.GetAnimFolder(), self.fileName + "_" + clip.subFix+".fbx")
         return os.path.normpath(path)
 
     def AddAnimClip(self): 
@@ -87,6 +87,40 @@ class MayaToUE:
     
         self.meshes = meshes 
         return True, ""
+    
+    def SaveFiles(self):
+        childrenJnts = mc.listRelatives(self.rootJnt, c = True, ad=True, type = "joint")
+        allJnts = [self.rootJnt] + childrenJnts
+        objectsToExport = allJnts + list(self.meshes)
+
+        mc.select(objectsToExport, r = True)
+        skeletalMeshSavePath = self.GetSkeletalMeshSavePath()
+
+        mc.FBXResetExport()
+        mc.FBXExportSmoothingGroups('-v', True)
+        mc.FBXExportInputConnections('-v', False)
+
+        mc.FBXExport('-f', skeletalMeshSavePath, '-s', True, '-ea', False)
+
+        if not self.animations:
+            return
+        
+        os.makedirs(self.GetAnimFolder(), exist_ok= True)
+        mc.FBXExportBakeComplexAnimation('-v', True)
+        for anim in self.animations:
+            
+            animsavePath = self.GetAnimClipSavePath(anim)
+            startFrame = anim.frameStart
+            endFrame = anim.frameEnd
+
+            mc.FBXExportBakeComplexStart('-v', startFrame)
+            mc.FBXExportBakeComplexEnd('-v', endFrame)
+            mc.FBXExportBakeComplexStep('-v', 1)
+
+            mc.playbackOptions(e = True, min = startFrame, max = endFrame)
+            mc.FBXExport('-f', animsavePath, '-s', True, '-ea', True)
+            
+
     
 
         
@@ -219,6 +253,10 @@ class MayaToUEWidget(QWidget):
 
         self.savePreviewLabel = QLabel()
         self.masterLayout.addWidget(self.savePreviewLabel)
+
+        saveBth = QPushButton("Save Files")
+        saveBth.clicked.connect(self.MayaToUE.SaveFiles)
+        self.masterLayout.addWidget(saveBth)
 
     def UpdateSavePreview(self):
         previewText = ""
