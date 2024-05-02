@@ -3,7 +3,7 @@ string $installFileInfo = `whatIs PathLocator`;
 string $installerPath = `substring $installFileInfo 25 999`;
 string $PluginDir = `dirname $installerPath`;
 
-string $srcDir = $PluginDir + "/src";
+string $srcDir = $PluginDir + "/src/";
 string $assetDir = $PluginDir + "/assets/";
 
 global proc AddPluginToShelf(string $scriptName)
@@ -17,7 +17,7 @@ global proc AddPluginToShelf(string $scriptName)
     string $currentSelf = `tabLayout -q -selectTab "ShelfLayout"`;
     setParent $currentSelf;
 
-    string $command = "exec(open)(\"" + $scriptPath +"\").read()";
+    string $command = "exec(open(\"" + $scriptPath +"\").read())";
     shelfButton -c $command -stp "python" -image $iconPath;
 }
 
