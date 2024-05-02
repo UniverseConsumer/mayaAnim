@@ -21,4 +21,4 @@ def ImportSkeletalMesh(meshPath):
     unreal.AssetToolsHelpers.get_asset_tools().import_asset_tasks([importTask])
     return importTask.get_objects()[0]
 
-ImportSkeletalMesh()
+ImportSkeletalMesh("")
